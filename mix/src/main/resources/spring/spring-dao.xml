@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+    <!-- 配置整合Mybatis过程 -->
+    <!-- 1：配置数据库相关参数properties的属性：${url} -->
+    <!--如果你有多个数据源需要通过<context:property-placeholder管理，且不愿意放在一个配置文件里，那么一定要加上ignore-unresolvable=“true"-->
+    <context:property-placeholder location="classpath:jdbc.properties" ignore-unresolvable="true"/>
+    <!-- 2：数据库连接池属性 -->
+    <!--<bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource" destroy-method="close">-->
+    <!--<property name="driverClass" value="${jdbc.driver}"/>-->
+    <!--<property name="jdbcUrl" value="${jdbc.url}"/>-->
+    <!--<property name="user" value="${jdbc.username}"/>-->
+    <!--<property name="password" value="${jdbc.password}"/>-->
+
+    <!--&lt;!&ndash; c3p0连接池的私有属性 &ndash;&gt;-->
+    <!--<property name="maxPoolSize" value="30"/>-->
+    <!--<property name="minPoolSize" value="10"/>-->
+    <!--&lt;!&ndash; 关闭连接后不自动commit &ndash;&gt;-->
+    <!--<property name="autoCommitOnClose" value="false"/>-->
+    <!--&lt;!&ndash; 获取连接超时时间 &ndash;&gt;-->
+    <!--<property name="checkoutTimeout" value="10000"/>-->
+    <!--&lt;!&ndash; 获取连接失败重试次数 &ndash;&gt;-->
+    <!--<property name="acquireRetryAttempts" value="2"/>-->
+    <!--</bean>-->
+
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource" init-method="init"
+          destroy-method="close"> <!-- 基本属性 url、user、password -->
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <!-- 配置初始化大小、最小、最大 -->
+        <property name="initialSize" value="5"/>
+        <property name="minIdle" value="5"/>
+        <property name="maxActive" value="10"/>
+        <!-- 配置从连接池获取连接等待超时的时间 -->
+        <property name="maxWait" value="10000"/>
+        <!-- 配置间隔多久启动一次DestroyThread，对连接池内的连接才进行一次检测，单位是毫秒。 检测时:1.如果连接空闲并且超过minIdle以外的连接，如果空闲时间超过minEvictableIdleTimeMillis设置的值则直接物理关闭。2.在minIdle以内的不处理。 -->
+        <property name="timeBetweenEvictionRunsMillis" value="600000"/>
+        <!-- 配置一个连接在池中最大空闲时间，单位是毫秒 -->
+        <property name="minEvictableIdleTimeMillis" value="300000"/>
+        <!-- 设置从连接池获取连接时是否检查连接有效性，true时，每次都检查;false时，不检查 -->
+        <property name="testOnBorrow" value="false"/>
+        <!-- 设置往连接池归还连接时是否检查连接有效性，true时，每次都检查;false时，不检查 -->
+        <property name="testOnReturn" value="false"/>
+        <!-- 设置从连接池获取连接时是否检查连接有效性，true时，如果连接空闲时间超过minEvictableIdleTimeMillis进行检查，否则不检查;false时，不检查 -->
+        <property name="testWhileIdle" value="true"/>
+        <!-- 检验连接是否有效的查询语句。如果数据库Driver支持ping()方法，则优先使用ping()方法进行检查，否则使用validationQuery查询进行检查。(Oracle jdbc Driver目前不支持ping方法) -->
+        <property name="validationQuery" value="select 1 from dual"/>
+        <!-- 单位：秒，检测连接是否有效的超时时间。底层调用jdbc Statement对象的void setQueryTimeout(int seconds)方法 --> <!-- <property name="validationQueryTimeout" value="1" /> -->
+        <!-- 打开后，增强timeBetweenEvictionRunsMillis的周期性连接检查，minIdle内的空闲连接，每次检查强制验证连接有效性. 参考：https://github.com/alibaba/druid/wiki/KeepAlive_cn -->
+        <property name="keepAlive" value="true"/>
+        <!-- 连接泄露检查，打开removeAbandoned功能 , 连接从连接池借出后，长时间不归还，将触发强制回连接。回收周期随timeBetweenEvictionRunsMillis进行，如果连接为从连接池借出状态，并且未执行任何sql，并且从借出时间起已超过removeAbandonedTimeout时间，则强制归还连接到连接池中。 -->
+        <property name="removeAbandoned" value="true"/>
+        <!-- 超时时间，秒 -->
+        <property name="removeAbandonedTimeout" value="80"/>
+        <!-- 关闭abanded连接时输出错误日志，这样出现连接泄露时可以通过错误日志定位忘记关闭连接的位置 -->
+        <property name="logAbandoned" value="true"/>
+        <!-- 根据自身业务及事务大小来设置 -->
+        <property name="connectionProperties" value="oracle.net.CONNECT_TIMEOUT=2000;oracle.jdbc.ReadTimeout=10000"/>
+        <!-- 打开PSCache，并且指定每个连接上PSCache的大小，Oracle等支持游标的数据库，打开此开关，会以数量级提升性能，具体查阅PSCache相关资料 -->
+        <property name="poolPreparedStatements" value="true"/>
+        <property name="maxPoolPreparedStatementPerConnectionSize" value="20"/>
+        <!-- 配置监控统计拦截的filters --> <!-- <property name="filters" value="stat,slf4j" /> -->
+        <property name="proxyFilters">
+            <list>
+                <ref bean="log-filter"/>
+                <ref bean="stat-filter"/>
+            </list>
+        </property>
+        <!-- 配置监控统计日志的输出间隔，单位毫秒，每次输出所有统计数据会重置，酌情开启 -->
+        <property name="timeBetweenLogStatsMillis" value="120000"/>
+    </bean>
+
+    <bean id="logFilter" class="com.alibaba.druid.filter.logging.Slf4jLogFilter">
+        <property name="statementExecutableSqlLogEnable" value="false"/>
+    </bean>
+
+    <!--Slow Query监控-->
+    <bean id="stat-filter" class="com.alibaba.druid.filter.stat.StatFilter">
+        <property name="slowSqlMillis" value="10000"/>
+        <property name="logSlowSql" value="true"/>
+    </bean>
+
+    <!--Sql合并-->
+    <!--<bean id="stat-filter" class="com.alibaba.druid.filter.stat.StatFilter">-->
+    <!--<property name="mergeSql" value="true" />-->
+    <!--</bean>-->
+
+    <!--打印Sql-->
+    <bean id="log-filter" class="com.alibaba.druid.filter.logging.Slf4jLogFilter">
+        <property name="statementExecutableSqlLogEnable" value="true"/>
+    </bean>
+
+    <!-- 约定大于配置 -->
+    <!-- 3：配置SqlSessionFactory对象 -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!-- 注入数据库连接池 -->
+        <property name="dataSource" ref="dataSource"/>
+        <!-- 配置MyBatis全局配置文件：mybatis-config.xml -->
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+        <!-- 扫描entity包 使用别名 -->
+        <property name="typeAliasesPackage" value="com.tjk.entity"/>
+        <!-- 扫描sql配置文件：mapper需要的xml文件 -->
+        <property name="mapperLocations" value="classpath:mapper/*.xml"/>
+    </bean>
+
+    <!-- 4：配置扫描Dao接口包，动态实现Dao接口，注入到spring容器中 -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+        <!-- 给出需要扫描Dao接口包 -->
+        <property name="basePackage" value="com.tjk.dao"/>
+    </bean>
+
+    <!--<bean id="redisDao" class="org.seckill.dao.cache.RedisDao">-->
+    <!--&lt;!&ndash;<constructor-arg index="0" value="localhost"/>&ndash;&gt;-->
+    <!--&lt;!&ndash;<constructor-arg index="1" value="6379"/>&ndash;&gt;-->
+    <!--</bean>-->
+
+</beans>
